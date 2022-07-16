@@ -5,40 +5,42 @@ static float FIR_IMPULSE_RESPONSE[FIR_FILTER_LENGTH] = {};
 /**
  * @brief reset fir filter struct
  *
- * @param fir
+ * @param cbuf
  */
-void fir_init(fir_filter_t *fir) {
+void fir_init(fir_cbuf_t *cbuf) {
   for (uint8_t i = 0; i < FIR_FILTER_LENGTH; i++) {
-    fir->buf[fir->idx] = 0.0f;
+    cbuf->buf[cbuf->idx] = 0.0f;
   }
-  fir->idx = 0;
-  fir->out = 0.0f;
+  cbuf->idx = 0;
 }
 
 /**
  * @brief Compute instantaneous filtered output
  *
- * @param fir
- * @param input
- * @return float
+ * @param cbuf fir circular buffer
+ * @param sample input sample
  */
-float fir_update(fir_filter_t *fir, float input) {
-  fir->buf[fir->idx] = input;
-  fir->idx++;
-  if (fir->idx >= FIR_FILTER_LENGTH) {
-    fir->idx = 0;
+void fir_update(fir_cbuf_t *cbuf, float sample) {
+  cbuf->buf[cbuf->idx] = sample;
+  cbuf->idx++;
+  if (cbuf->idx >= FIR_FILTER_LENGTH) {
+    cbuf->idx = 0;
   }
-  fir->out = 0.0f;
-  // implement convolution of filter against input to get a filtered output
-  uint8_t sum_idx = fir->idx;
+}
+
+/**
+ * @brief Compute instantaneous filtered output
+ *
+ * @param cbuf fir circular buffer
+ */
+float fir_read(fir_cbuf_t *cbuf) {
+  float fir_out = 0;
+  uint8_t cum_idx = cbuf->idx;
   for (uint8_t i = 0; i < FIR_FILTER_LENGTH; i++) {
-    // circular buffer logic
-    if (sum_idx > 0) {
-      sum_idx--;
-    } else {
-      sum_idx = FIR_FILTER_LENGTH - 1;
-    }
-    fir->out += FIR_IMPULSE_RESPONSE[i] * fir->buf[sum_idx];
+    // index for circular buffer
+    cum_idx = cum_idx != 0 ? cum_idx - 1 : FIR_FILTER_LENGTH - 1;
+    // apply convolution of impulse response and input buffer
+    fir_out += FIR_IMPULSE_RESPONSE[i] * cbuf->buf[cum_idx];
   }
-  return fir->out;
+  return fir_out;
 }
